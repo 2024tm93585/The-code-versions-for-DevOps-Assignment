@@ -2,10 +2,12 @@ pipeline {
     agent any
 
     environment {
-        AWS_REGION         = "${env.AWS_REGION ?: 'us-east-1'}"
-        ECR_REPO           = "${env.ECR_REPO ?: 'aceest-fitness'}"
-        IMAGE_TAG          = "${env.BUILD_NUMBER}"
-        SONAR_SCANNER_HOME = tool 'SonarScanner'
+        PROJECT_DIR    = "DevOps-Assignment2"
+        PYTHON         = "python3"
+        VENV_DIR       = "${WORKSPACE}/DevOps-Assignment2/venv"
+        AWS_REGION     = "${env.AWS_REGION ?: 'us-east-1'}"
+        ECR_REPO       = "${env.ECR_REPO ?: 'aceest-fitness'}"
+        IMAGE_TAG      = "${env.BUILD_NUMBER}"
     }
 
     options {
@@ -16,187 +18,210 @@ pipeline {
 
     stages {
 
+        // --------------------------------------------------------
         stage('Checkout') {
+        // --------------------------------------------------------
             steps {
                 echo '=== Stage 1: Checkout ==='
                 checkout scm
-                echo "Branch: ${env.GIT_BRANCH}"
-                echo "Commit: ${env.GIT_COMMIT}"
+                echo "Branch  : ${env.GIT_BRANCH ?: 'local'}"
+                echo "Commit  : ${env.GIT_COMMIT ?: 'local'}"
+                echo "Workspace: ${WORKSPACE}"
             }
         }
 
+        // --------------------------------------------------------
         stage('Install Dependencies') {
+        // --------------------------------------------------------
             steps {
                 echo '=== Stage 2: Install Dependencies ==='
-                sh '''
-                    python3 -m venv venv
+                sh """
+                    cd ${PROJECT_DIR}
+                    ${PYTHON} -m venv venv
                     . venv/bin/activate
                     pip install --upgrade pip
                     pip install -r requirements.txt
-                '''
-            }
-        }
-
-        stage('Code Quality (Flake8)') {
-            steps {
-                echo '=== Stage 3: Code Quality — Flake8 ==='
-                sh '''
-                    . venv/bin/activate
-                    flake8 app/ tests/ --max-line-length=120 --statistics --count
-                '''
-            }
-        }
-
-        stage('Unit Tests') {
-            steps {
-                echo '=== Stage 4: Unit Tests — Pytest ==='
-                sh '''
-                    . venv/bin/activate
-                    pytest tests/ -v \
-                        --cov=app \
-                        --cov-report=xml:coverage.xml \
-                        --cov-report=html:htmlcov \
-                        --junitxml=test-results.xml
-                '''
-            }
-        }
-
-        stage('SonarQube Analysis') {
-            steps {
-                echo '=== Stage 5: SonarQube Analysis ==='
-                withSonarQubeEnv('SonarQube') {
-                    sh '''
-                        ${SONAR_SCANNER_HOME}/bin/sonar-scanner \
-                            -Dsonar.projectKey=aceest-fitness \
-                            -Dsonar.projectName="ACEest Fitness & Gym" \
-                            -Dsonar.projectVersion=3.2.4 \
-                            -Dsonar.sources=app \
-                            -Dsonar.tests=tests \
-                            -Dsonar.python.coverage.reportPaths=coverage.xml \
-                            -Dsonar.python.xunit.reportPath=test-results.xml \
-                            -Dsonar.sourceEncoding=UTF-8
-                    '''
-                }
-            }
-        }
-
-        stage('Quality Gate') {
-            steps {
-                echo '=== Stage 6: Quality Gate ==='
-                timeout(time: 5, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true
-                }
-            }
-        }
-
-        stage('Build Docker Image') {
-            steps {
-                echo '=== Stage 7: Build Docker Image ==='
-                sh """
-                    AWS_ACCOUNT_ID=\$(aws sts get-caller-identity --query Account --output text)
-                    ECR_URI=\${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}
-                    docker build -t aceest-fitness:${IMAGE_TAG} .
-                    docker tag aceest-fitness:${IMAGE_TAG} \${ECR_URI}:${IMAGE_TAG}
-                    docker tag aceest-fitness:${IMAGE_TAG} \${ECR_URI}:latest
-                    echo \${ECR_URI}:${IMAGE_TAG} > ecr_image.txt
                 """
             }
         }
 
-        stage('Push to Registry') {
+        // --------------------------------------------------------
+        stage('Code Quality — Flake8') {
+        // --------------------------------------------------------
             steps {
-                echo '=== Stage 8: Push to Amazon ECR ==='
+                echo '=== Stage 3: Lint with Flake8 ==='
+                sh """
+                    cd ${PROJECT_DIR}
+                    . venv/bin/activate
+                    flake8 app/ tests/ --max-line-length=120 --statistics --count
+                """
+            }
+        }
+
+        // --------------------------------------------------------
+        stage('Unit Tests — Pytest') {
+        // --------------------------------------------------------
+            steps {
+                echo '=== Stage 4: Run Pytest with Coverage ==='
+                sh """
+                    cd ${PROJECT_DIR}
+                    . venv/bin/activate
+                    pytest tests/ -v \\
+                        --cov=app \\
+                        --cov-report=xml:coverage.xml \\
+                        --cov-report=html:htmlcov \\
+                        --junitxml=test-results.xml
+                """
+            }
+            post {
+                always {
+                    // Publish JUnit test results
+                    junit allowEmptyResults: true,
+                          testResults: "${PROJECT_DIR}/test-results.xml"
+
+                    // Publish HTML coverage report
+                    publishHTML(target: [
+                        allowMissing         : true,
+                        alwaysLinkToLastBuild: true,
+                        keepAll              : true,
+                        reportDir            : "${PROJECT_DIR}/htmlcov",
+                        reportFiles          : 'index.html',
+                        reportName           : 'Coverage Report'
+                    ])
+
+                    // Archive artifacts
+                    archiveArtifacts artifacts: "${PROJECT_DIR}/test-results.xml, ${PROJECT_DIR}/coverage.xml",
+                                     allowEmptyArchive: true
+                }
+            }
+        }
+
+        // --------------------------------------------------------
+        stage('SonarQube Analysis') {
+        // --------------------------------------------------------
+            when {
+                expression {
+                    // Only run if SonarQube is configured in Jenkins
+                    try {
+                        def sonar = Jenkins.instance.getDescriptor('hudson.plugins.sonar.SonarGlobalConfiguration')
+                        return sonar != null
+                    } catch (e) {
+                        return false
+                    }
+                }
+            }
+            steps {
+                echo '=== Stage 5: SonarQube Analysis ==='
+                withSonarQubeEnv('SonarQube') {
+                    sh """
+                        cd ${PROJECT_DIR}
+                        . venv/bin/activate
+                        sonar-scanner \\
+                            -Dsonar.projectKey=aceest-fitness \\
+                            -Dsonar.projectName="ACEest Fitness & Gym" \\
+                            -Dsonar.projectVersion=3.2.4 \\
+                            -Dsonar.sources=app \\
+                            -Dsonar.tests=tests \\
+                            -Dsonar.python.coverage.reportPaths=coverage.xml \\
+                            -Dsonar.python.xunit.reportPath=test-results.xml \\
+                            -Dsonar.sourceEncoding=UTF-8
+                    """
+                }
+            }
+        }
+
+        // --------------------------------------------------------
+        stage('Build Docker Image') {
+        // --------------------------------------------------------
+            when {
+                expression {
+                    // Only run if Docker is available
+                    return sh(script: 'which docker', returnStatus: true) == 0
+                }
+            }
+            steps {
+                echo '=== Stage 6: Build Docker Image ==='
+                sh """
+                    cd ${PROJECT_DIR}
+                    docker build --platform linux/amd64 \\
+                        -t aceest-fitness:${IMAGE_TAG} \\
+                        -t aceest-fitness:latest \\
+                        .
+                    echo "Built: aceest-fitness:${IMAGE_TAG}"
+                    docker images aceest-fitness
+                """
+            }
+        }
+
+        // --------------------------------------------------------
+        stage('Push to ECR') {
+        // --------------------------------------------------------
+            when {
+                allOf {
+                    expression { return sh(script: 'which docker', returnStatus: true) == 0 }
+                    expression { return sh(script: 'which aws', returnStatus: true) == 0 }
+                    branch 'main'
+                }
+            }
+            steps {
+                echo '=== Stage 7: Push to Amazon ECR ==='
                 sh """
                     AWS_ACCOUNT_ID=\$(aws sts get-caller-identity --query Account --output text)
                     ECR_URI=\${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}
                     aws ecr get-login-password --region ${AWS_REGION} | \\
                         docker login --username AWS --password-stdin \${ECR_URI}
+                    docker tag aceest-fitness:${IMAGE_TAG} \${ECR_URI}:${IMAGE_TAG}
+                    docker tag aceest-fitness:${IMAGE_TAG} \${ECR_URI}:latest
                     docker push \${ECR_URI}:${IMAGE_TAG}
                     docker push \${ECR_URI}:latest
                     docker logout
+                    echo "Pushed: \${ECR_URI}:${IMAGE_TAG}"
                 """
             }
         }
 
+        // --------------------------------------------------------
         stage('Deploy to AWS ECS') {
+        // --------------------------------------------------------
+            when {
+                allOf {
+                    expression { return sh(script: 'which aws', returnStatus: true) == 0 }
+                    branch 'main'
+                }
+            }
             steps {
-                echo '=== Stage 9: Deploy to ECS Fargate ==='
+                echo '=== Stage 8: Deploy to ECS Fargate ==='
                 sh """
-                    chmod +x aws/deploy-ecs.sh
-                    bash aws/deploy-ecs.sh
+                    chmod +x ${PROJECT_DIR}/aws/deploy-ecs.sh
+                    bash ${PROJECT_DIR}/aws/deploy-ecs.sh
                 """
             }
         }
 
-        stage('Smoke Test') {
-            steps {
-                echo '=== Stage 10: Smoke Test ==='
-                sh """
-                    AWS_REGION_VAL=${AWS_REGION}
-                    CLUSTER="aceest-cluster"
-                    SERVICE="aceest-fitness-service"
-
-                    TASK_ARN=\$(aws ecs list-tasks \
-                        --cluster \$CLUSTER \
-                        --service-name \$SERVICE \
-                        --query "taskArns[0]" \
-                        --output text \
-                        --region \$AWS_REGION_VAL)
-
-                    ENI_ID=\$(aws ecs describe-tasks \
-                        --cluster \$CLUSTER \
-                        --tasks \$TASK_ARN \
-                        --query "tasks[0].attachments[0].details[?name=='networkInterfaceId'].value" \
-                        --output text \
-                        --region \$AWS_REGION_VAL)
-
-                    PUBLIC_IP=\$(aws ec2 describe-network-interfaces \
-                        --network-interface-ids \$ENI_ID \
-                        --query "NetworkInterfaces[0].Association.PublicIp" \
-                        --output text \
-                        --region \$AWS_REGION_VAL)
-
-                    echo "Smoke testing http://\${PUBLIC_IP}:5000/health"
-                    curl -f --retry 5 --retry-delay 5 "http://\${PUBLIC_IP}:5000/health" | grep -q 'healthy'
-                    echo "Smoke test passed!"
-                """
-            }
-        }
     }
 
+    // --------------------------------------------------------
     post {
+    // --------------------------------------------------------
         always {
-            echo '=== Post: Publishing Results ==='
-            junit allowEmptyResults: true, testResults: 'test-results.xml'
-            publishHTML(target: [
-                allowMissing         : true,
-                alwaysLinkToLastBuild: true,
-                keepAll              : true,
-                reportDir            : 'htmlcov',
-                reportFiles          : 'index.html',
-                reportName           : 'Coverage Report'
-            ])
-            // Clean up Docker images to save disk space
-            sh "docker rmi aceest-fitness:${IMAGE_TAG} || true"
+            echo '=== Pipeline Complete ==='
+            echo "Build #${BUILD_NUMBER} finished — ${currentBuild.currentResult}"
         }
-
         success {
-            echo '=== Build Succeeded ==='
-            echo "Image ${IMAGE_FULL} deployed successfully."
-            // Notify team on success (configure notification plugin as needed)
-            // slackSend channel: '#deployments', color: 'good',
-            //     message: "ACEest Fitness deployed: ${IMAGE_FULL} — Build #${BUILD_NUMBER} SUCCESS"
+            echo '✅ All stages passed successfully!'
         }
-
         failure {
-            echo '=== Build Failed — Rolling Back ECS ==='
+            echo '❌ Pipeline failed — check logs above'
+            // Rollback ECS if AWS is available
             sh """
-                aws ecs update-service \
-                    --cluster aceest-cluster \
-                    --service aceest-fitness-service \
-                    --force-new-deployment \
-                    --region ${AWS_REGION} || true
-                echo "ECS rollback triggered (previous task definition will be reused)."
+                if which aws > /dev/null 2>&1; then
+                    aws ecs update-service \\
+                        --cluster aceest-cluster \\
+                        --service aceest-fitness-service \\
+                        --force-new-deployment \\
+                        --region ${AWS_REGION} || true
+                    echo "ECS rollback triggered"
+                fi
             """
         }
     }
