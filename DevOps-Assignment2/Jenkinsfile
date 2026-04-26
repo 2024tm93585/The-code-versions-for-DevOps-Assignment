@@ -75,22 +75,12 @@ pipeline {
             }
             post {
                 always {
-                    // Publish JUnit test results
+                    // Publish JUnit test results (built-in, no plugin needed)
                     junit allowEmptyResults: true,
                           testResults: "${PROJECT_DIR}/test-results.xml"
 
-                    // Publish HTML coverage report
-                    publishHTML(target: [
-                        allowMissing         : true,
-                        alwaysLinkToLastBuild: true,
-                        keepAll              : true,
-                        reportDir            : "${PROJECT_DIR}/htmlcov",
-                        reportFiles          : 'index.html',
-                        reportName           : 'Coverage Report'
-                    ])
-
-                    // Archive artifacts
-                    archiveArtifacts artifacts: "${PROJECT_DIR}/test-results.xml, ${PROJECT_DIR}/coverage.xml",
+                    // Archive all artifacts (built-in)
+                    archiveArtifacts artifacts: "${PROJECT_DIR}/test-results.xml, ${PROJECT_DIR}/coverage.xml, ${PROJECT_DIR}/htmlcov/**",
                                      allowEmptyArchive: true
                 }
             }
