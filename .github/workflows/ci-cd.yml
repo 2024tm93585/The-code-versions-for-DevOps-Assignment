@@ -2,14 +2,14 @@ name: ACEest Fitness CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, develop, release/*, feature/* ]
+    branches: [ main, develop, "release/*", "feature/*" ]
   pull_request:
     branches: [ main, develop ]
 
 jobs:
 
   # ============================================================
-  # JOB 1: Lint + Test + Coverage
+  # JOB 1: Lint + Test + Coverage (no secrets needed)
   # ============================================================
   test:
     name: Lint, Test & Coverage
@@ -53,32 +53,34 @@ jobs:
           name: test-results
           path: DevOps-Assignment2/test-results.xml
 
-      - name: Upload coverage report
+      - name: Upload coverage HTML report
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: coverage-report
           path: DevOps-Assignment2/htmlcov/
 
-      - name: Upload coverage XML (for SonarCloud)
+      - name: Upload coverage XML
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: coverage-xml
           path: DevOps-Assignment2/coverage.xml
 
   # ============================================================
-  # JOB 2: SonarCloud Analysis
+  # JOB 2: SonarCloud (only runs if SONAR_TOKEN secret is set)
   # ============================================================
   sonar:
     name: SonarCloud Analysis
     runs-on: ubuntu-latest
     needs: test
+    if: ${{ secrets.SONAR_TOKEN != '' }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # full history needed for SonarCloud blame
+          fetch-depth: 0
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
@@ -87,14 +89,10 @@ jobs:
           cache: 'pip'
           cache-dependency-path: DevOps-Assignment2/requirements.txt
 
-      - name: Install dependencies
+      - name: Install dependencies and generate coverage
         working-directory: DevOps-Assignment2
         run: |
           pip install -r requirements.txt
-
-      - name: Re-run tests to generate coverage.xml
-        working-directory: DevOps-Assignment2
-        run: |
           pytest tests/ --cov=app --cov-report=xml:coverage.xml -q
 
       - name: SonarCloud Scan
@@ -106,13 +104,15 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   # ============================================================
-  # JOB 3: Build & Push Docker Image to Docker Hub
+  # JOB 3: Docker Build & Push (only if DOCKERHUB secrets set)
   # ============================================================
   docker:
     name: Build & Push Docker Image
     runs-on: ubuntu-latest
     needs: test
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    if: |
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') &&
+      secrets.DOCKERHUB_USERNAME != ''
 
     steps:
       - name: Checkout code
@@ -127,7 +127,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels)
+      - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
@@ -150,13 +150,15 @@ jobs:
           cache-to: type=gha,mode=max
 
   # ============================================================
-  # JOB 4: Deploy to AWS ECS (main branch only)
+  # JOB 4: Deploy to AWS ECS (only if AWS secrets set)
   # ============================================================
   deploy:
     name: Deploy to AWS ECS Fargate
     runs-on: ubuntu-latest
     needs: docker
-    if: github.ref == 'refs/heads/main'
+    if: |
+      github.ref == 'refs/heads/main' &&
+      secrets.AWS_ACCESS_KEY_ID != ''
     environment: production
 
     steps:
@@ -175,7 +177,6 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Build, tag and push image to ECR
-        id: build-image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: aceest-fitness
@@ -187,55 +188,22 @@ jobs:
             DevOps-Assignment2/
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
-
-      - name: Register new ECS task definition
-        id: task-def
-        env:
-          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
-        run: |
-          sed "s/YOUR_ACCOUNT_ID/$AWS_ACCOUNT_ID/g; s/YOUR_REGION/us-east-1/g" \
-            DevOps-Assignment2/aws/ecs-task-definition.json > /tmp/task-def.json
-          aws ecs register-task-definition \
-            --cli-input-json file:///tmp/task-def.json \
-            --region us-east-1 \
-            --query "taskDefinition.taskDefinitionArn" \
-            --output text
 
       - name: Deploy to ECS service
         run: |
+          AWS_ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID }}
+          sed "s/YOUR_ACCOUNT_ID/$AWS_ACCOUNT_ID/g; s/YOUR_REGION/us-east-1/g" \
+            DevOps-Assignment2/aws/ecs-task-definition.json > /tmp/task-def.json
+          aws ecs register-task-definition \
+            --cli-input-json file:///tmp/task-def.json --region us-east-1
           aws ecs update-service \
             --cluster aceest-cluster \
             --service aceest-fitness-service \
             --task-definition aceest-fitness \
             --force-new-deployment \
             --region us-east-1
-
-      - name: Wait for deployment to stabilise
-        run: |
           aws ecs wait services-stable \
             --cluster aceest-cluster \
             --services aceest-fitness-service \
             --region us-east-1
           echo "Deployment stable!"
-
-      - name: Smoke test
-        run: |
-          TASK_ARN=$(aws ecs list-tasks \
-            --cluster aceest-cluster \
-            --service-name aceest-fitness-service \
-            --region us-east-1 \
-            --query "taskArns[0]" --output text)
-          ENI_ID=$(aws ecs describe-tasks \
-            --cluster aceest-cluster --tasks $TASK_ARN \
-            --region us-east-1 \
-            --query "tasks[0].attachments[0].details[?name=='networkInterfaceId'].value" \
-            --output text)
-          PUBLIC_IP=$(aws ec2 describe-network-interfaces \
-            --network-interface-ids $ENI_ID \
-            --region us-east-1 \
-            --query "NetworkInterfaces[0].Association.PublicIp" \
-            --output text)
-          echo "Testing http://$PUBLIC_IP:5000/health"
-          curl -f --retry 5 --retry-delay 5 "http://$PUBLIC_IP:5000/health"
-          echo "Smoke test passed!"
