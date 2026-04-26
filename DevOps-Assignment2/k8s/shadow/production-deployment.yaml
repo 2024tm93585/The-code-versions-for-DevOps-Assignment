@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aceest-fitness-production
+  namespace: default
+  labels:
+    app: aceest-fitness
+    environment: production
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: aceest-fitness
+      environment: production
+  template:
+    metadata:
+      labels:
+        app: aceest-fitness
+        environment: production
+    spec:
+      containers:
+        - name: aceest-fitness
+          image: aceest-fitness:stable
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5000
+          env:
+            - name: FLASK_ENV
+              value: "production"
+            - name: DEPLOYMENT_ENV
+              value: "production"
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3

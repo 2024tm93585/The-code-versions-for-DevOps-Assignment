@@ -1,0 +1,53 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: aceest-fitness-service
+  namespace: default
+  labels:
+    app: aceest-fitness
+  annotations:
+    # Shadow deployment: this service routes ONLY to production pods.
+    # Shadow pods receive mirrored traffic via Istio VirtualService or
+    # nginx-ingress mirror annotations — NOT through this service.
+    #
+    # Istio example (VirtualService):
+    #   mirror:
+    #     host: aceest-fitness-shadow-service
+    #   mirrorPercentage:
+    #     value: 100.0
+    #
+    # nginx-ingress example:
+    #   nginx.ingress.kubernetes.io/mirror-target: http://aceest-fitness-shadow-service/$request_uri
+    deployment.strategy: "shadow"
+spec:
+  type: NodePort
+  # Routes only to production pods
+  selector:
+    app: aceest-fitness
+    environment: production
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 5000
+      nodePort: 30080
+---
+# Separate internal service for shadow pods (used as mirror target)
+apiVersion: v1
+kind: Service
+metadata:
+  name: aceest-fitness-shadow-service
+  namespace: default
+  labels:
+    app: aceest-fitness
+    environment: shadow
+spec:
+  type: ClusterIP
+  selector:
+    app: aceest-fitness
+    environment: shadow
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 5000

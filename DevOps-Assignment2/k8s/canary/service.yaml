@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: aceest-fitness-service
+  namespace: default
+  labels:
+    app: aceest-fitness
+  annotations:
+    # Canary deployment: the service selects ALL pods with app=aceest-fitness
+    # (both stable and canary). Traffic is distributed proportionally by
+    # replica count: 9 stable + 1 canary = ~10% canary traffic.
+    # To promote canary: scale stable to 0, scale canary to 10, then
+    # update stable image and restore replica counts.
+    deployment.strategy: "canary"
+spec:
+  type: NodePort
+  # Selects both stable and canary pods — traffic split by replica ratio
+  selector:
+    app: aceest-fitness
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 5000
+      nodePort: 30080

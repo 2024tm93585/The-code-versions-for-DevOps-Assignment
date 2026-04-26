@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}ACEest Fitness & Gym{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root {
+            --gold: #d4af37;
+            --gold-light: #f0d060;
+            --dark-bg: #1a1a1a;
+            --dark-card: #242424;
+            --dark-nav: #111111;
+            --dark-border: #333333;
+            --text-muted-custom: #aaaaaa;
+        }
+
+        body {
+            background-color: var(--dark-bg);
+            color: #f0f0f0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Navbar */
+        .navbar {
+            background-color: var(--dark-nav) !important;
+            border-bottom: 2px solid var(--gold);
+            padding: 0.75rem 1.5rem;
+        }
+
+        .navbar-brand {
+            color: var(--gold) !important;
+            font-weight: 700;
+            font-size: 1.4rem;
+            letter-spacing: 1px;
+        }
+
+        .navbar-brand span {
+            color: #ffffff;
+        }
+
+        .nav-link {
+            color: #cccccc !important;
+            font-weight: 500;
+            transition: color 0.2s;
+            padding: 0.5rem 1rem !important;
+        }
+
+        .nav-link:hover,
+        .nav-link.active {
+            color: var(--gold) !important;
+        }
+
+        .navbar-toggler {
+            border-color: var(--gold);
+        }
+
+        .navbar-toggler-icon {
+            filter: invert(1);
+        }
+
+        /* Cards */
+        .card {
+            background-color: var(--dark-card);
+            border: 1px solid var(--dark-border);
+            border-radius: 10px;
+        }
+
+        .card-header {
+            background-color: rgba(212, 175, 55, 0.15);
+            border-bottom: 1px solid var(--dark-border);
+            color: var(--gold);
+            font-weight: 600;
+        }
+
+        /* Buttons */
+        .btn-gold {
+            background-color: var(--gold);
+            color: #1a1a1a;
+            font-weight: 600;
+            border: none;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+
+        .btn-gold:hover {
+            background-color: var(--gold-light);
+            color: #1a1a1a;
+            transform: translateY(-1px);
+        }
+
+        .btn-outline-gold {
+            border: 1px solid var(--gold);
+            color: var(--gold);
+            background: transparent;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn-outline-gold:hover {
+            background-color: var(--gold);
+            color: #1a1a1a;
+        }
+
+        /* Tables */
+        .table {
+            color: #f0f0f0;
+        }
+
+        .table thead th {
+            background-color: rgba(212, 175, 55, 0.2);
+            color: var(--gold);
+            border-color: var(--dark-border);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 0.5px;
+        }
+
+        .table tbody tr {
+            border-color: var(--dark-border);
+            transition: background-color 0.15s;
+        }
+
+        .table tbody tr:hover {
+            background-color: rgba(212, 175, 55, 0.05);
+        }
+
+        .table td {
+            border-color: var(--dark-border);
+            vertical-align: middle;
+        }
+
+        /* Forms */
+        .form-control,
+        .form-select {
+            background-color: #2a2a2a;
+            border: 1px solid var(--dark-border);
+            color: #f0f0f0;
+            border-radius: 6px;
+        }
+
+        .form-control:focus,
+        .form-select:focus {
+            background-color: #2a2a2a;
+            border-color: var(--gold);
+            color: #f0f0f0;
+            box-shadow: 0 0 0 0.2rem rgba(212, 175, 55, 0.25);
+        }
+
+        .form-label {
+            color: #cccccc;
+            font-weight: 500;
+        }
+
+        /* Gold accent text */
+        .text-gold {
+            color: var(--gold) !important;
+        }
+
+        /* Stat cards */
+        .stat-card {
+            background: linear-gradient(135deg, var(--dark-card) 0%, #2a2a2a 100%);
+            border: 1px solid var(--dark-border);
+            border-left: 4px solid var(--gold);
+            border-radius: 10px;
+            padding: 1.5rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(212, 175, 55, 0.15);
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--gold);
+            line-height: 1;
+        }
+
+        .stat-label {
+            color: var(--text-muted-custom);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 0.25rem;
+        }
+
+        /* Hero */
+        .hero-section {
+            background: linear-gradient(135deg, #111111 0%, #1a1a1a 50%, #222222 100%);
+            border-bottom: 1px solid var(--dark-border);
+            padding: 3rem 0;
+        }
+
+        .hero-title {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: #ffffff;
+        }
+
+        .hero-title span {
+            color: var(--gold);
+        }
+
+        /* Footer */
+        footer {
+            background-color: var(--dark-nav);
+            border-top: 1px solid var(--dark-border);
+            color: var(--text-muted-custom);
+            padding: 1.25rem 0;
+            margin-top: auto;
+        }
+
+        /* Alerts */
+        .alert-success {
+            background-color: rgba(25, 135, 84, 0.2);
+            border-color: #198754;
+            color: #75b798;
+        }
+
+        .alert-danger {
+            background-color: rgba(220, 53, 69, 0.2);
+            border-color: #dc3545;
+            color: #ea868f;
+        }
+
+        .alert-info {
+            background-color: rgba(13, 202, 240, 0.15);
+            border-color: #0dcaf0;
+            color: #6edff6;
+        }
+
+        /* Badge */
+        .badge-gold {
+            background-color: var(--gold);
+            color: #1a1a1a;
+            font-weight: 600;
+        }
+
+        /* Program card */
+        .program-card {
+            background-color: var(--dark-card);
+            border: 1px solid var(--dark-border);
+            border-top: 3px solid var(--gold);
+            border-radius: 10px;
+            padding: 1.5rem;
+            height: 100%;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .program-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 30px rgba(212, 175, 55, 0.15);
+        }
+
+        .program-name {
+            color: var(--gold);
+            font-weight: 700;
+            font-size: 1.05rem;
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-muted-custom);
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            color: var(--dark-border);
+            margin-bottom: 1rem;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--dark-bg);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--dark-border);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--gold);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="bi bi-lightning-charge-fill me-2"></i>ACEest <span>Fitness</span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#navbarNav" aria-controls="navbarNav"
+                    aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'main.index' %}active{% endif %}"
+                           href="/">
+                            <i class="bi bi-house-fill me-1"></i>Home
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if 'client' in (request.endpoint or '') %}active{% endif %}"
+                           href="/clients">
+                            <i class="bi bi-people-fill me-1"></i>Clients
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'main.programs' %}active{% endif %}"
+                           href="/programs">
+                            <i class="bi bi-clipboard2-pulse-fill me-1"></i>Programs
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Flash Messages -->
+    <div class="container-fluid px-4 mt-3">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        <i class="bi bi-{% if category == 'success' %}check-circle-fill{% elif category == 'danger' %}exclamation-triangle-fill{% else %}info-circle-fill{% endif %} me-2"></i>
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <!-- Main Content -->
+    <main class="flex-grow-1">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container text-center">
+            <p class="mb-0">
+                <i class="bi bi-lightning-charge-fill text-gold me-1"></i>
+                <strong class="text-gold">ACEest Fitness &amp; Gym</strong>
+                &copy; 2024 &mdash; All rights reserved.
+            </p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

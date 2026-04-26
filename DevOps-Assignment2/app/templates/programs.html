@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Programs — ACEest Fitness{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="mb-5">
+        <h1 class="text-gold fw-bold mb-1">
+            <i class="bi bi-clipboard2-pulse-fill me-2"></i>Training Programs
+        </h1>
+        <p class="text-muted">
+            {{ programs|length }} program{% if programs|length != 1 %}s{% endif %} available.
+            Each program is tailored to a specific fitness goal.
+        </p>
+    </div>
+
+    <div class="row g-4">
+        {% for prog_name, prog_data in programs.items() %}
+        <div class="col-md-6 col-xl-3">
+            <div class="program-card">
+                <div class="mb-3">
+                    {% if 'Fat Loss' in prog_name %}
+                        <i class="bi bi-fire" style="font-size: 2rem; color: #ff6b35;"></i>
+                    {% elif 'Muscle Gain' in prog_name %}
+                        <i class="bi bi-lightning-charge-fill" style="font-size: 2rem; color: var(--gold);"></i>
+                    {% else %}
+                        <i class="bi bi-star-fill" style="font-size: 2rem; color: #4fc3f7;"></i>
+                    {% endif %}
+                </div>
+                <div class="program-name mb-2">{{ prog_name }}</div>
+                <p class="text-muted small mb-3">{{ prog_data.desc }}</p>
+                <hr style="border-color: #333;">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="text-muted small">Calorie Factor</div>
+                        <div class="text-gold fw-bold fs-5">× {{ prog_data.factor }}</div>
+                    </div>
+                    <div class="text-end">
+                        <div class="text-muted small">Example (75 kg)</div>
+                        <div class="fw-semibold">{{ 75 * prog_data.factor }} kcal/day</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Info Section -->
+    <div class="card mt-5">
+        <div class="card-header">
+            <i class="bi bi-info-circle-fill me-2"></i>How Calorie Targets Are Calculated
+        </div>
+        <div class="card-body">
+            <p class="text-muted mb-3">
+                Daily calorie targets are calculated using a simple multiplier formula:
+            </p>
+            <div class="p-3 rounded text-center mb-3"
+                 style="background: rgba(212,175,55,0.08); border: 1px solid rgba(212,175,55,0.2);">
+                <code class="text-gold fs-5">Daily Calories = Body Weight (kg) × Program Factor</code>
+            </div>
+            <p class="text-muted mb-0">
+                This provides a straightforward starting point for nutrition planning.
+                Factors are adjusted based on training volume and goal intensity.
+            </p>
+        </div>
+    </div>
+
+    <div class="mt-4">
+        <a href="/clients/add" class="btn btn-gold me-2">
+            <i class="bi bi-person-plus-fill me-2"></i>Assign Program to Client
+        </a>
+        <a href="/clients" class="btn btn-outline-gold">
+            <i class="bi bi-people-fill me-2"></i>View All Clients
+        </a>
+    </div>
+</div>
+{% endblock %}

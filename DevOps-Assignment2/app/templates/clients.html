@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block title %}Clients — ACEest Fitness{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+        <div>
+            <h1 class="text-gold fw-bold mb-1">
+                <i class="bi bi-people-fill me-2"></i>Clients
+            </h1>
+            <p class="text-muted mb-0">
+                {{ clients|length }} registered client{% if clients|length != 1 %}s{% endif %}
+            </p>
+        </div>
+        <a href="/clients/add" class="btn btn-gold">
+            <i class="bi bi-person-plus-fill me-2"></i>Add New Client
+        </a>
+    </div>
+
+    {% if clients %}
+    <div class="card">
+        <div class="card-header d-flex align-items-center justify-content-between">
+            <span><i class="bi bi-table me-2"></i>Client Registry</span>
+            <span class="badge badge-gold">{{ clients|length }} total</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th scope="col">#</th>
+                            <th scope="col"><i class="bi bi-person me-1"></i>Name</th>
+                            <th scope="col"><i class="bi bi-calendar me-1"></i>Age</th>
+                            <th scope="col"><i class="bi bi-rulers me-1"></i>Height (cm)</th>
+                            <th scope="col"><i class="bi bi-speedometer2 me-1"></i>Weight (kg)</th>
+                            <th scope="col"><i class="bi bi-clipboard2-pulse me-1"></i>Program</th>
+                            <th scope="col"><i class="bi bi-fire me-1"></i>Calories/day</th>
+                            <th scope="col">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for client in clients %}
+                        <tr>
+                            <td class="text-muted">{{ loop.index }}</td>
+                            <td class="fw-semibold">{{ client.name }}</td>
+                            <td>{{ client.age }}</td>
+                            <td>{{ client.height }}</td>
+                            <td>{{ client.weight }}</td>
+                            <td>
+                                <span class="badge badge-gold">{{ client.program }}</span>
+                            </td>
+                            <td class="text-gold fw-semibold">{{ client.calories }} kcal</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-danger"
+                                        onclick="deleteClient('{{ client.name }}')"
+                                        title="Delete client">
+                                    <i class="bi bi-trash3-fill"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    {% else %}
+    <div class="card">
+        <div class="card-body">
+            <div class="empty-state">
+                <i class="bi bi-people d-block"></i>
+                <h4 class="mt-3 mb-2">No clients yet</h4>
+                <p class="text-muted mb-4">
+                    Get started by adding your first gym client.
+                </p>
+                <a href="/clients/add" class="btn btn-gold btn-lg">
+                    <i class="bi bi-person-plus-fill me-2"></i>Add First Client
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="background-color: #242424; border: 1px solid #333;">
+            <div class="modal-header" style="border-bottom: 1px solid #333;">
+                <h5 class="modal-title text-gold" id="deleteModalLabel">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>Confirm Delete
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0">Are you sure you want to delete client <strong id="deleteClientName" class="text-gold"></strong>?
+                This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer" style="border-top: 1px solid #333;">
+                <button type="button" class="btn btn-outline-gold" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+                    <i class="bi bi-trash3-fill me-1"></i>Delete
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let clientToDelete = null;
+    const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+
+    function deleteClient(name) {
+        clientToDelete = name;
+        document.getElementById('deleteClientName').textContent = name;
+        deleteModal.show();
+    }
+
+    document.getElementById('confirmDeleteBtn').addEventListener('click', function () {
+        if (!clientToDelete) return;
+        fetch('/clients/' + encodeURIComponent(clientToDelete), {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            deleteModal.hide();
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert('Failed to delete client: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(err => {
+            deleteModal.hide();
+            alert('Error: ' + err.message);
+        });
+    });
+</script>
+{% endblock %}

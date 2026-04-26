@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  aceest-app:
+    build: .
+    container_name: aceest-fitness
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=production
+      - DATABASE=aceest_fitness.db
+    volumes:
+      - aceest-data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  sonarqube:
+    image: sonarqube:10.4-community
+    container_name: aceest-sonarqube
+    ports:
+      - "9000:9000"
+    environment:
+      - SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true
+    volumes:
+      - sonarqube-data:/opt/sonarqube/data
+      - sonarqube-logs:/opt/sonarqube/logs
+    restart: unless-stopped
+
+volumes:
+  aceest-data:
+  sonarqube-data:
+  sonarqube-logs:

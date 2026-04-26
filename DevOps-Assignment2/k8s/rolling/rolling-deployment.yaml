@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aceest-fitness
+  namespace: default
+  labels:
+    app: aceest-fitness
+    deployment-strategy: rolling-update
+  annotations:
+    # Rolling Update strategy: Kubernetes replaces pods incrementally.
+    # maxSurge: 1   — at most 1 extra pod above desired count during update
+    # maxUnavailable: 1 — at most 1 pod can be unavailable during update
+    # This ensures near-zero downtime while limiting resource overhead.
+    kubernetes.io/change-cause: "Rolling update deployment"
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: aceest-fitness
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: aceest-fitness
+    spec:
+      containers:
+        - name: aceest-fitness
+          image: aceest-fitness:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5000
+          env:
+            - name: FLASK_ENV
+              value: "production"
+            - name: DATABASE
+              value: "aceest_fitness.db"
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+      # Ensure pods are spread across nodes for HA
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: aceest-fitness

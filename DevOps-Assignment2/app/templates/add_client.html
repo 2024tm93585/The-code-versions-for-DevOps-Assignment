@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block title %}Add Client — ACEest Fitness{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-7 col-xl-6">
+            <div class="mb-4">
+                <h1 class="text-gold fw-bold mb-1">
+                    <i class="bi bi-person-plus-fill me-2"></i>Add New Client
+                </h1>
+                <p class="text-muted">Fill in the client details below to register them in the system.</p>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <i class="bi bi-pencil-square me-2"></i>Client Information
+                </div>
+                <div class="card-body p-4">
+                    <form method="POST" action="/clients/add" novalidate>
+
+                        <!-- Name -->
+                        <div class="mb-4">
+                            <label for="name" class="form-label">
+                                <i class="bi bi-person me-1 text-gold"></i>Full Name
+                                <span class="text-danger ms-1">*</span>
+                            </label>
+                            <input type="text"
+                                   class="form-control"
+                                   id="name"
+                                   name="name"
+                                   placeholder="e.g. John Smith"
+                                   required
+                                   maxlength="100">
+                            <div class="form-text text-muted">Enter the client's full name.</div>
+                        </div>
+
+                        <!-- Age -->
+                        <div class="mb-4">
+                            <label for="age" class="form-label">
+                                <i class="bi bi-calendar me-1 text-gold"></i>Age
+                                <span class="text-danger ms-1">*</span>
+                            </label>
+                            <input type="number"
+                                   class="form-control"
+                                   id="age"
+                                   name="age"
+                                   placeholder="e.g. 28"
+                                   min="10"
+                                   max="100"
+                                   required>
+                        </div>
+
+                        <!-- Height -->
+                        <div class="mb-4">
+                            <label for="height" class="form-label">
+                                <i class="bi bi-rulers me-1 text-gold"></i>Height (cm)
+                                <span class="text-danger ms-1">*</span>
+                            </label>
+                            <input type="number"
+                                   class="form-control"
+                                   id="height"
+                                   name="height"
+                                   placeholder="e.g. 175"
+                                   min="100"
+                                   max="250"
+                                   step="0.1"
+                                   required>
+                        </div>
+
+                        <!-- Weight -->
+                        <div class="mb-4">
+                            <label for="weight" class="form-label">
+                                <i class="bi bi-speedometer2 me-1 text-gold"></i>Weight (kg)
+                                <span class="text-danger ms-1">*</span>
+                            </label>
+                            <input type="number"
+                                   class="form-control"
+                                   id="weight"
+                                   name="weight"
+                                   placeholder="e.g. 75"
+                                   min="30"
+                                   max="300"
+                                   step="0.1"
+                                   required>
+                        </div>
+
+                        <!-- Program -->
+                        <div class="mb-4">
+                            <label for="program" class="form-label">
+                                <i class="bi bi-clipboard2-pulse me-1 text-gold"></i>Training Program
+                                <span class="text-danger ms-1">*</span>
+                            </label>
+                            <select class="form-select" id="program" name="program" required>
+                                <option value="" disabled selected>— Select a program —</option>
+                                {% for prog_name, prog_data in programs.items() %}
+                                <option value="{{ prog_name }}">
+                                    {{ prog_name }} — {{ prog_data.desc }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text text-muted">
+                                The program determines the daily calorie target.
+                            </div>
+                        </div>
+
+                        <!-- Calorie Preview -->
+                        <div class="mb-4 p-3 rounded" style="background: rgba(212,175,55,0.08); border: 1px solid rgba(212,175,55,0.2);" id="caloriePreview" style="display:none;">
+                            <small class="text-gold fw-semibold">
+                                <i class="bi bi-fire me-1"></i>Estimated Daily Calories:
+                                <span id="calorieValue" class="fs-5 ms-1">—</span>
+                            </small>
+                        </div>
+
+                        <!-- Buttons -->
+                        <div class="d-flex gap-3 mt-4">
+                            <button type="submit" class="btn btn-gold flex-grow-1">
+                                <i class="bi bi-check-circle-fill me-2"></i>Save Client
+                            </button>
+                            <a href="/clients" class="btn btn-outline-gold">
+                                <i class="bi bi-x-circle me-1"></i>Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const programs = {
+        {% for prog_name, prog_data in programs.items() %}
+        "{{ prog_name }}": {{ prog_data.factor }}{% if not loop.last %},{% endif %}
+        {% endfor %}
+    };
+
+    const weightInput = document.getElementById('weight');
+    const programSelect = document.getElementById('program');
+    const caloriePreview = document.getElementById('caloriePreview');
+    const calorieValue = document.getElementById('calorieValue');
+
+    function updateCalories() {
+        const weight = parseFloat(weightInput.value);
+        const program = programSelect.value;
+        if (weight && program && programs[program]) {
+            const calories = Math.round(weight * programs[program]);
+            calorieValue.textContent = calories + ' kcal/day';
+            caloriePreview.style.display = 'block';
+        } else {
+            caloriePreview.style.display = 'none';
+        }
+    }
+
+    weightInput.addEventListener('input', updateCalories);
+    programSelect.addEventListener('change', updateCalories);
+</script>
+{% endblock %}

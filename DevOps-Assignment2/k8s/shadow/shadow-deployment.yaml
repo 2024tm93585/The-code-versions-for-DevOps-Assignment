@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aceest-fitness-shadow
+  namespace: default
+  labels:
+    app: aceest-fitness
+    environment: shadow
+  annotations:
+    shadow: "true"
+    # Shadow deployment: receives mirrored (duplicated) traffic from production.
+    # Responses from shadow pods are discarded — users only see production responses.
+    # Configure traffic mirroring via Istio VirtualService mirror field or
+    # nginx-ingress mirror annotations.
+    deployment.strategy: "shadow"
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: aceest-fitness
+      environment: shadow
+  template:
+    metadata:
+      labels:
+        app: aceest-fitness
+        environment: shadow
+      annotations:
+        shadow: "true"
+    spec:
+      containers:
+        - name: aceest-fitness
+          image: aceest-fitness:shadow
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5000
+          env:
+            - name: FLASK_ENV
+              value: "production"
+            - name: DEPLOYMENT_ENV
+              value: "shadow"
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
