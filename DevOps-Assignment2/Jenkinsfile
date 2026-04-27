@@ -126,6 +126,9 @@ pipeline {
             steps {
                 echo '=== Stage 6: Build Docker Image ==='
                 sh """
+                    # Use full path to docker since Jenkins has restricted PATH
+                    export PATH=\$PATH:/usr/local/bin:/Applications/Docker.app/Contents/Resources/bin
+
                     cd ${PROJECT_DIR}
                     docker build --platform linux/amd64 \\
                         -t aceest-fitness:${IMAGE_TAG} \\
@@ -143,6 +146,8 @@ pipeline {
             steps {
                 echo '=== Stage 7: Deploy to Docker Desktop ==='
                 sh """
+                    export PATH=\$PATH:/usr/local/bin:/Applications/Docker.app/Contents/Resources/bin
+
                     # Stop and remove existing container if running
                     docker stop aceest-fitness-app 2>/dev/null || true
                     docker rm   aceest-fitness-app 2>/dev/null || true
@@ -168,7 +173,7 @@ pipeline {
             steps {
                 echo '=== Stage 8: Smoke Test ==='
                 sh """
-                    # Wait for Flask to start
+                    # Wait for Flask to start inside container
                     sleep 5
 
                     # Hit the health endpoint
