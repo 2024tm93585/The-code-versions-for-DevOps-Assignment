@@ -74,7 +74,7 @@ jobs:
     name: SonarCloud Analysis
     runs-on: ubuntu-latest
     needs: test
-    if: ${{ secrets.SONAR_TOKEN != '' }}
+    if: false  # Disabled - set to true and configure SONAR_TOKEN secret to enable
 
     steps:
       - name: Checkout code
@@ -110,9 +110,8 @@ jobs:
     name: Build & Push Docker Image
     runs-on: ubuntu-latest
     needs: test
-    if: |
-      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') &&
-      secrets.DOCKERHUB_USERNAME != ''
+    if: false  # Disabled - set to true and configure DOCKERHUB secrets to enable
+    # Original condition: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
 
     steps:
       - name: Checkout code
@@ -155,10 +154,9 @@ jobs:
   deploy:
     name: Deploy to AWS ECS Fargate
     runs-on: ubuntu-latest
-    needs: docker
-    if: |
-      github.ref == 'refs/heads/main' &&
-      secrets.AWS_ACCESS_KEY_ID != ''
+    needs: test  # Changed from 'docker' since docker job is disabled
+    if: false  # Disabled - set to true and configure AWS secrets to enable
+    # Original condition: github.ref == 'refs/heads/main'
     environment: production
 
     steps:
