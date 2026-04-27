@@ -123,12 +123,6 @@ pipeline {
         // --------------------------------------------------------
         stage('Build Docker Image') {
         // --------------------------------------------------------
-            when {
-                expression {
-                    // Only run if Docker is available
-                    return sh(script: 'which docker', returnStatus: true) == 0
-                }
-            }
             steps {
                 echo '=== Stage 6: Build Docker Image ==='
                 sh """
@@ -139,6 +133,48 @@ pipeline {
                         .
                     echo "Built: aceest-fitness:${IMAGE_TAG}"
                     docker images aceest-fitness
+                """
+            }
+        }
+
+        // --------------------------------------------------------
+        stage('Deploy to Docker Desktop') {
+        // --------------------------------------------------------
+            steps {
+                echo '=== Stage 7: Deploy to Docker Desktop ==='
+                sh """
+                    # Stop and remove existing container if running
+                    docker stop aceest-fitness-app 2>/dev/null || true
+                    docker rm   aceest-fitness-app 2>/dev/null || true
+
+                    # Run new container from freshly built image
+                    docker run -d \\
+                        --name aceest-fitness-app \\
+                        --platform linux/amd64 \\
+                        -p 5000:5000 \\
+                        -e FLASK_ENV=production \\
+                        --restart unless-stopped \\
+                        aceest-fitness:latest
+
+                    echo "Container started"
+                    docker ps --filter name=aceest-fitness-app
+                """
+            }
+        }
+
+        // --------------------------------------------------------
+        stage('Smoke Test — Docker Desktop') {
+        // --------------------------------------------------------
+            steps {
+                echo '=== Stage 8: Smoke Test ==='
+                sh """
+                    # Wait for Flask to start
+                    sleep 5
+
+                    # Hit the health endpoint
+                    curl -f --retry 5 --retry-delay 3 http://localhost:5000/health
+                    echo ""
+                    echo "Smoke test passed — app is live at http://localhost:5000"
                 """
             }
         }
@@ -202,8 +238,27 @@ pipeline {
         }
         failure {
             echo '❌ Pipeline failed — check logs above'
-            // Rollback ECS if AWS is available
+            // Rollback: restart previous container if available
             sh """
+                echo "Rolling back Docker container..."
+                docker stop aceest-fitness-app 2>/dev/null || true
+                docker rm   aceest-fitness-app 2>/dev/null || true
+
+                # Restart from previous image tag if it exists
+                PREV_TAG=\$(( ${IMAGE_TAG} - 1 ))
+                if docker image inspect aceest-fitness:\${PREV_TAG} > /dev/null 2>&1; then
+                    docker run -d \\
+                        --name aceest-fitness-app \\
+                        -p 5000:5000 \\
+                        -e FLASK_ENV=production \\
+                        --restart unless-stopped \\
+                        aceest-fitness:\${PREV_TAG}
+                    echo "Rolled back to aceest-fitness:\${PREV_TAG}"
+                else
+                    echo "No previous image found — manual intervention required"
+                fi
+
+                # Also rollback ECS if AWS is available
                 if which aws > /dev/null 2>&1; then
                     aws ecs update-service \\
                         --cluster aceest-cluster \\
