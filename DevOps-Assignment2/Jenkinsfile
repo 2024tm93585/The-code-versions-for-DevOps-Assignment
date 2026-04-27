@@ -89,34 +89,25 @@ pipeline {
         // --------------------------------------------------------
         stage('SonarQube Analysis') {
         // --------------------------------------------------------
-            when {
-                expression {
-                    // Only run if SonarQube is configured in Jenkins
-                    try {
-                        def sonar = Jenkins.instance.getDescriptor('hudson.plugins.sonar.SonarGlobalConfiguration')
-                        return sonar != null
-                    } catch (e) {
-                        return false
-                    }
-                }
-            }
             steps {
                 echo '=== Stage 5: SonarQube Analysis ==='
-                withSonarQubeEnv('SonarQube') {
-                    sh """
-                        cd ${PROJECT_DIR}
-                        . venv/bin/activate
-                        sonar-scanner \\
-                            -Dsonar.projectKey=aceest-fitness \\
-                            -Dsonar.projectName="ACEest Fitness & Gym" \\
-                            -Dsonar.projectVersion=3.2.4 \\
-                            -Dsonar.sources=app \\
-                            -Dsonar.tests=tests \\
-                            -Dsonar.python.coverage.reportPaths=coverage.xml \\
-                            -Dsonar.python.xunit.reportPath=test-results.xml \\
-                            -Dsonar.sourceEncoding=UTF-8
-                    """
-                }
+                sh """
+                    export PATH=\$PATH:/opt/homebrew/bin
+                    cd ${PROJECT_DIR}
+                    . venv/bin/activate
+
+                    sonar-scanner \\
+                        -Dsonar.projectKey=aceest-fitness \\
+                        -Dsonar.projectName="ACEest Fitness & Gym" \\
+                        -Dsonar.projectVersion=3.2.4 \\
+                        -Dsonar.sources=app \\
+                        -Dsonar.tests=tests \\
+                        -Dsonar.python.coverage.reportPaths=coverage.xml \\
+                        -Dsonar.python.xunit.reportPath=test-results.xml \\
+                        -Dsonar.host.url=http://localhost:9000 \\
+                        -Dsonar.token=squ_a35560238f9004afa2a6dc4f85510fca0acd8024 \\
+                        -Dsonar.sourceEncoding=UTF-8
+                """
             }
         }
 
